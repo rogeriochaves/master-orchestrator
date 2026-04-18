@@ -67,3 +67,25 @@ Run `kanban <cmd> --help` for options on any of them.
 - **Confirm before acting on behalf of the user.** For anything beyond approving a benign permission prompt the user explicitly asked about, check in first — each session belongs to work the user cares about, and sending the wrong message can derail it.
 - **Verify sends.** After `kanban send`, re-capture the pane to confirm the message landed and the session moved forward.
 - **Keep this file updated.** When the user teaches new workflow rules or we discover new kanban patterns, append them here so we stay consistent across conversations.
+
+## Babysitting checklist (what to look for when monitoring sessions)
+
+When the user asks to babysit one or more sessions, check each one on every cycle for these four things, in order. Cadence: ~270s (4.5 min) — under the 5-minute prompt-cache TTL so the monitoring loop stays cheap.
+
+1. **Permission prompt pending?** `Do you want to proceed?` with numbered options → auto-approve, preferring the session-wide option (usually `2`, labels like "Yes, and don't ask again for this session"). Use `kanban send --keys <card> "<digit>"`. Fall back to `1` only for plain 2-option `1. Yes / 2. No`.
+2. **Stuck in a ralph loop wasting tokens, saying "done", or trying to stop?** Read the channel history and capture peek to understand what the session is working on. If the work is actually still needed, coordinate with the team (via the channel the user told you to listen in on) to find where there's more work to do, then nudge the session back on track. Use judgment — only intervene if you're confident the session is off the rails.
+3. **Ralph loop died, session idle with just `done`?** If the session stopped entirely (not waiting on a background task, just finished) and the work isn't actually complete, kick it back into the loop — usually re-sending `/ralph-loop:ralph-loop` or a short "keep going, your task is …" nudge.
+4. **Context window over 500k tokens?** Peek shows `<tok>/1.0M ctx (<pct>%)`. At >500k (>50%) the session starts getting dumb. Tell it (via `kanban send`) to `/compact` itself at the next clean cut in the current task — phrasing like "you're at 550k ctx, `/compact` yourself when you hit a clean break in the current task". Don't force-compact mid-work.
+
+If nothing matches, do nothing — just re-schedule the next check. Report any intervention to the user after it happens; don't spam about quiet cycles.
+
+## Channels (multi-agent coordination)
+
+Kanban has Slack-like channels for agent-to-agent chat. Relevant commands:
+
+- `kanban channel list` — all channels with member count and last activity
+- `kanban channel join <name>` — join (prepend `#` escape as `\#` in zsh or quote the name)
+- `kanban channel history <name>` — read messages
+- `kanban channel send <name> "<msg>"` — broadcast
+
+When the user says "listen in on #foo", join but don't send. Poll history on each babysit cycle so you know what the team is coordinating on — useful context when judging whether a stuck session is actually done.
